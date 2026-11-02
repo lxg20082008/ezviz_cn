@@ -912,12 +912,23 @@ class EzvizClient:
 
     def send_mfa_code(self) -> bool:
         """Send verification code."""
-        json_output = self._request_json(
-            "POST",
-            API_ENDPOINT_SEND_CODE,
-            data={"from": self.account, "bizType": "TERMINAL_BIND"},
-            retry_401=False,
-        )
+        api_url = self._token["api_url"]
+        login_headers = _login_headers_for_api_url(api_url)
+        original_headers = self._session.headers.copy()
+        try:
+            if login_headers is not None:
+                self._session.headers.clear()
+                self._session.headers.update(login_headers)
+            json_output = self._request_json(
+                "POST",
+                API_ENDPOINT_SEND_CODE,
+                data={"from": self.account, "bizType": "TERMINAL_BIND"},
+                retry_401=False,
+            )
+        finally:
+            if login_headers is not None:
+                self._session.headers.clear()
+                self._session.headers.update(original_headers)
 
         if not self._meta_ok(json_output):
             raise PyEzvizError(f"Could not request MFA code: Got {json_output})")
@@ -2436,15 +2447,27 @@ class EzvizClient:
         if max_retries > MAX_RETRIES:
             raise PyEzvizError("Can't gather proper data. Max retries exceeded.")
 
-        json_output = self._request_json(
-            "GET",
-            API_ENDPOINT_GROUP_DEFENCE_MODE,
-            params={"groupId": -1},
-            retry_401=True,
-            max_retries=max_retries,
-        )
-        self._ensure_ok(json_output, "Could not get group defence status")
-        return json_output.get("mode")
+        # 中国区 api.ys7.com 不支持 group defenceMode 端点(404)。
+        # 记下标志后直接返回默认值 0，避免报警面板每 60 秒轮询一次刷屏日志。
+        if getattr(self, "_group_defence_mode_unsupported", False):
+            return "0"
+
+        try:
+            json_output = self._request_json(
+                "GET",
+                API_ENDPOINT_GROUP_DEFENCE_MODE,
+                params={"groupId": -1},
+                retry_401=True,
+                max_retries=max_retries,
+            )
+            self._ensure_ok(json_output, "Could not get group defence status")
+            return json_output.get("mode")
+        except HTTPError as err:
+            self._group_defence_mode_unsupported = True
+            # 中国区 api.ys7.com 不支持 group defenceMode 端点(404)，
+            # 返回默认值 0，让报警面板状态保持未知，避免 setup/update 报错。
+            _LOGGER.warning("group_defence_mode 端点不可用，返回默认值 0: %s", err)
+            return "0"
 
     # Not tested
     def cancel_alarm_device(self, serial: str, max_retries: int = 0) -> bool:

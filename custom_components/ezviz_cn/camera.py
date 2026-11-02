@@ -100,6 +100,33 @@ async def async_setup_entry(
             )
         )
 
+        # 双摄设备(如 C7 双摄): 第二个镜头走 ch2 通道,自动创建第二个实体。
+        # 仅当 RTSP 已配置、路径含 ch1、且设备上报双通道时生效。
+        if (
+            camera_password is not None
+            and "ch1" in ffmpeg_arguments
+            and value.get("supported_channels", 1) > 1
+        ):
+            ch2_ffmpeg_arguments = ffmpeg_arguments.replace("ch1", "ch2")
+            ch2_rtsp_stream = (
+                f"rtsp://{camera_username}:{camera_password}@"
+                f"{value['local_ip']}:{value['local_rtsp_port']}{ch2_ffmpeg_arguments}"
+            )
+            camera_entities.append(
+                EzvizCamera(
+                    hass,
+                    coordinator,
+                    camera,
+                    camera_username,
+                    camera_password,
+                    ch2_rtsp_stream,
+                    value["local_rtsp_port"],
+                    ch2_ffmpeg_arguments,
+                    unique_id=f"{camera}_ch2",
+                    name="长焦",
+                )
+            )
+
     async_add_entities(camera_entities)
 
     platform = async_get_current_platform()
@@ -124,6 +151,8 @@ class EzvizCamera(EzvizEntity, Camera):
         camera_rtsp_stream: str | None,
         local_rtsp_port: int,
         ffmpeg_arguments: str | None,
+        unique_id: str | None = None,
+        name: str | None = None,
     ) -> None:
         """Initialize a EZVIZ security camera."""
         super().__init__(coordinator, serial)
@@ -135,7 +164,11 @@ class EzvizCamera(EzvizEntity, Camera):
         self._local_rtsp_port = local_rtsp_port
         self._ffmpeg_arguments = ffmpeg_arguments
         self._ffmpeg = get_ffmpeg_manager(hass)
-        self._attr_unique_id = serial
+        self._attr_unique_id = unique_id or serial
+        # 双摄设备的第二通道实体使用独立名称(如「长焦」),
+        # has_entity_name=True 时最终显示为「设备名 长焦」。
+        if name is not None:
+            self._attr_name = name
         if camera_password:
             self._attr_supported_features = CameraEntityFeature.STREAM
 

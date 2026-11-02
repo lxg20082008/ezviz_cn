@@ -60,7 +60,7 @@ async def async_setup_entry(
     async_add_entities(
         EzvizNumber(coordinator, camera, value, entry.entry_id)
         for camera in coordinator.data
-        for capability, value in coordinator.data[camera]["supportExt"].items()
+        for capability, value in (coordinator.data[camera].get("supportExt") or {}).items()
         if capability == NUMBER_TYPE.supported_ext
         if value in NUMBER_TYPE.supported_ext_value
     )

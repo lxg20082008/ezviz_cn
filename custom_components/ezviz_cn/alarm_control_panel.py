@@ -143,6 +143,10 @@ class EzvizAlarm(AlarmControlPanelEntity):
             ]
 
         except PyEzvizError as error:
-            raise HomeAssistantError(
-                f"Could not fetch EZVIZ alarm status: {error}"
-            ) from error
+            _LOGGER.warning(
+                "Could not fetch EZVIZ alarm status: %s "
+                "(中国区 api.ys7.com 可能不支持 group defenceMode 端点)",
+                error,
+            )
+            # 不 raise：避免 update 失败连锁导致 async_setup_entry 报错，
+            # 报警面板状态保持未知即可。

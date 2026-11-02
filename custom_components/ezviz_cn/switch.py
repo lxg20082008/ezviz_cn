@@ -119,6 +119,11 @@ async def async_setup_entry(
         if switch_number in SWITCH_TYPES
     )
 
+    # 每台摄像头追加「布防」开关(移动侦测), 与萤石 App 的布防按钮等效。
+    async_add_entities(
+        EzvizDefenceSwitch(coordinator, camera) for camera in coordinator.data
+    )
+
 
 class EzvizSwitch(EzvizEntity, SwitchEntity):
     """Representation of a EZVIZ sensor."""
@@ -170,4 +175,53 @@ class EzvizSwitch(EzvizEntity, SwitchEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_is_on = self.data["switches"].get(self._switch_number)
+        super()._handle_coordinator_update()
+
+
+class EzvizDefenceSwitch(EzvizEntity, SwitchEntity):
+    """Representation of the camera defence (motion detection) switch.
+
+    布防/撤防开关, 与萤石 App 的布防按钮等效。状态读设备上报的
+    alarm_notify(STATUS.globalStatus), 写走 App 客户端 API 设备级端点
+    /v3/devices/{serial}/1/changeDefenceStatusReq(中国区可用)。
+    """
+
+    def __init__(
+        self, coordinator: EzvizDataUpdateCoordinator, serial: str
+    ) -> None:
+        """Initialize the defence switch."""
+        super().__init__(coordinator, serial)
+        self._attr_unique_id = f"{serial}_{self._camera_name}.defence"
+        self._attr_name = "布防"
+        self._attr_device_class = SwitchDeviceClass.SWITCH
+        self._attr_is_on = self.data["alarm_notify"]
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """布防(开启移动侦测)."""
+        try:
+            if await self.hass.async_add_executor_job(
+                self.coordinator.ezviz_client.set_camera_defence, self._serial, 1
+            ):
+                self._attr_is_on = True
+                self.async_write_ha_state()
+
+        except (HTTPError, PyEzvizError) as err:
+            raise HomeAssistantError(f"布防失败 {self.name}") from err
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """撤防(关闭移动侦测)."""
+        try:
+            if await self.hass.async_add_executor_job(
+                self.coordinator.ezviz_client.set_camera_defence, self._serial, 0
+            ):
+                self._attr_is_on = False
+                self.async_write_ha_state()
+
+        except (HTTPError, PyEzvizError) as err:
+            raise HomeAssistantError(f"撤防失败 {self.name}") from err
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._attr_is_on = self.data["alarm_notify"]
         super()._handle_coordinator_update()

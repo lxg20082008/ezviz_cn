@@ -55,7 +55,7 @@ PLATFORMS_BY_TYPE: dict[str, list] = {
 }
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: EzvizConfigEntry) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: EzvizConfigEntry) -> bool:
     """Set up EZVIZ from a config entry."""
     sensor_type: str = entry.data[CONF_TYPE]
     ezviz_client = None
@@ -109,7 +109,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: EzvizConfigEntry) -> Non
             if item.data.get(CONF_TYPE) == ATTR_TYPE_CLOUD:
                 _LOGGER.debug("Reload Ezviz main account with camera entry")
                 await hass.config_entries.async_reload(item.entry_id)
-                return
+                return True
 
     await hass.config_entries.async_forward_entry_setups(
         entry, PLATFORMS_BY_TYPE[sensor_type]
@@ -132,11 +132,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: EzvizConfigEntry) -> Non
                     entity_entry.entity_id,
                 )
 
+    return True
 
-async def async_unload_entry(hass: HomeAssistant, entry: EzvizConfigEntry) -> None:
+
+async def async_unload_entry(hass: HomeAssistant, entry: EzvizConfigEntry) -> bool:
     """Unload a config entry."""
     sensor_type = entry.data[CONF_TYPE]
 
-    await hass.config_entries.async_unload_platforms_or_raise(
+    return await hass.config_entries.async_unload_platforms(
         entry, PLATFORMS_BY_TYPE[sensor_type]
     )

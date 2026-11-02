@@ -85,6 +85,7 @@ class TestRTSPAuth:
     def main(self) -> None:
         """Open RTSP socket, try Basic and then Digest auth for DESCRIBE."""
         session: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        session.settimeout(10)
 
         try:
             session.connect(
@@ -97,6 +98,13 @@ class TestRTSPAuth:
             raise AuthTestResultFailed("Invalid ip or camera hibernating") from err
         except (socket.gaierror, ConnectionRefusedError) as err:
             raise InvalidHost("Invalid IP or Hostname") from err
+        except OSError as err:
+            # 网络层不可达(如 Errno 113 Host is unreachable)，
+            # 摄像头 IP 不可达或设备不在线，提示用户检查 IP 与网络连通性。
+            raise InvalidHost(
+                f"无法连接摄像头 {self._rtsp_details['defaultServerIp']}: {err}，"
+                "请检查摄像头 IP 与网络连通性"
+            ) from err
 
         seq: int = 1
 
