@@ -4,7 +4,7 @@
   "codeowners": ["@liuzexier"],
   "config_flow": true,
   "dependencies": ["ffmpeg"],
-  "documentation": "https://github.com/liuzexier/pyEzvizApiCN",
+  "documentation": "https://github.com/lxg20082008/ezviz_cn",
   "issue_tracker": "https://github.com/liuzexier/ezviz_cn/issues",
   "iot_class": "cloud_polling",
   "loggers": ["paho_mqtt", "pyezvizapi"],
