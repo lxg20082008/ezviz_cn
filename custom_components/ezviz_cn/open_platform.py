@@ -115,6 +115,8 @@ class EzvizOpenPlatformClient:
                 "endTime": end_time,
                 "pageStart": 0,
                 "pageSize": page_size,
+                # status=2 查所有(含已读/未读)；默认 0=仅未读会漏掉已被 App 读过的告警
+                "status": 2,
             },
         )
         data = result.get("data")
