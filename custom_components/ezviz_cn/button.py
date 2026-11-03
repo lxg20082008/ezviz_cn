@@ -34,6 +34,8 @@ PTZ_ANY_CAPABILITIES = (
     str(SupportExt.SupportPtzNew.value),
 )
 PTZ_MODEL_HINTS = ("c6", "c6c", "c6n", "c6w", "c7", "c8", "cp1", "h6c")
+PTZ_SPEED = 1  # 云台移动速度(1-8, 越大越快); 微调用最慢速
+PTZ_HOLD_SECONDS = 0.3  # START 与 STOP 保持时长(秒), 决定单次移动幅度
 BUTTON_NAMES = {
     "ptz_up": "云台上移",
     "ptz_down": "云台下移",
@@ -47,7 +49,7 @@ BUTTON_ENTITIES = (
         key="ptz_up",
         translation_key="ptz_up",
         method=lambda pyezviz_client, serial, run, channel: pyezviz_client.ptz_control(
-            "UP", serial, run, channel_no=channel
+            "UP", serial, run, speed=PTZ_SPEED, channel_no=channel
         ),
         supported_exts=(
             *PTZ_ANY_CAPABILITIES,
@@ -58,7 +60,7 @@ BUTTON_ENTITIES = (
         key="ptz_down",
         translation_key="ptz_down",
         method=lambda pyezviz_client, serial, run, channel: pyezviz_client.ptz_control(
-            "DOWN", serial, run, channel_no=channel
+            "DOWN", serial, run, speed=PTZ_SPEED, channel_no=channel
         ),
         supported_exts=(
             *PTZ_ANY_CAPABILITIES,
@@ -69,7 +71,7 @@ BUTTON_ENTITIES = (
         key="ptz_left",
         translation_key="ptz_left",
         method=lambda pyezviz_client, serial, run, channel: pyezviz_client.ptz_control(
-            "LEFT", serial, run, channel_no=channel
+            "LEFT", serial, run, speed=PTZ_SPEED, channel_no=channel
         ),
         supported_exts=(
             *PTZ_ANY_CAPABILITIES,
@@ -80,7 +82,7 @@ BUTTON_ENTITIES = (
         key="ptz_right",
         translation_key="ptz_right",
         method=lambda pyezviz_client, serial, run, channel: pyezviz_client.ptz_control(
-            "RIGHT", serial, run, channel_no=channel
+            "RIGHT", serial, run, speed=PTZ_SPEED, channel_no=channel
         ),
         supported_exts=(
             *PTZ_ANY_CAPABILITIES,
@@ -166,6 +168,8 @@ class EzvizButtonEntity(EzvizEntity, ButtonEntity):
         super().__init__(coordinator, serial)
         self._attr_unique_id = f"{serial}_{description.key}"
         self._attr_name = BUTTON_NAMES.get(description.key, description.key)
+        # entity_id 由 HA 2026.7 的英文翻译机制自动生成(如 button.c7_bc2840612_move_up),
+        # 无需显式设置; 旧版 _attr_entity_id 已在此版本移除。
         self.entity_description = description
 
     def press(self) -> None:
@@ -177,7 +181,7 @@ class EzvizButtonEntity(EzvizEntity, ButtonEntity):
                 self.coordinator.ezviz_client, self._serial, "START", channel
             )
             # START 后保持片刻再 STOP, 否则云台移动时间过短(<200ms)肉眼不可见。
-            time.sleep(0.6)
+            time.sleep(PTZ_HOLD_SECONDS)
             self.entity_description.method(
                 self.coordinator.ezviz_client, self._serial, "STOP", channel
             )
