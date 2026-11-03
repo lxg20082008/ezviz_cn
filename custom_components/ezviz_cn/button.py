@@ -1,5 +1,6 @@
 """Support for EZVIZ button controls."""
 
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -23,7 +24,7 @@ PARALLEL_UPDATES = 1
 class EzvizButtonEntityDescription(ButtonEntityDescription):
     """Describe a EZVIZ Button."""
 
-    method: Callable[[EzvizClient, str, str], Any]
+    method: Callable[[EzvizClient, str, str, int], Any]
     supported_exts: tuple[str, ...]
 
 
@@ -32,7 +33,7 @@ PTZ_ANY_CAPABILITIES = (
     str(SupportExt.SupportPtzManualCtrl.value),
     str(SupportExt.SupportPtzNew.value),
 )
-PTZ_MODEL_HINTS = ("c6", "c6c", "c6n", "c6w", "c8", "cp1", "h6c")
+PTZ_MODEL_HINTS = ("c6", "c6c", "c6n", "c6w", "c7", "c8", "cp1", "h6c")
 BUTTON_NAMES = {
     "ptz_up": "云台上移",
     "ptz_down": "云台下移",
@@ -45,8 +46,8 @@ BUTTON_ENTITIES = (
     EzvizButtonEntityDescription(
         key="ptz_up",
         translation_key="ptz_up",
-        method=lambda pyezviz_client, serial, run: pyezviz_client.ptz_control(
-            "UP", serial, run
+        method=lambda pyezviz_client, serial, run, channel: pyezviz_client.ptz_control(
+            "UP", serial, run, channel_no=channel
         ),
         supported_exts=(
             *PTZ_ANY_CAPABILITIES,
@@ -56,8 +57,8 @@ BUTTON_ENTITIES = (
     EzvizButtonEntityDescription(
         key="ptz_down",
         translation_key="ptz_down",
-        method=lambda pyezviz_client, serial, run: pyezviz_client.ptz_control(
-            "DOWN", serial, run
+        method=lambda pyezviz_client, serial, run, channel: pyezviz_client.ptz_control(
+            "DOWN", serial, run, channel_no=channel
         ),
         supported_exts=(
             *PTZ_ANY_CAPABILITIES,
@@ -67,8 +68,8 @@ BUTTON_ENTITIES = (
     EzvizButtonEntityDescription(
         key="ptz_left",
         translation_key="ptz_left",
-        method=lambda pyezviz_client, serial, run: pyezviz_client.ptz_control(
-            "LEFT", serial, run
+        method=lambda pyezviz_client, serial, run, channel: pyezviz_client.ptz_control(
+            "LEFT", serial, run, channel_no=channel
         ),
         supported_exts=(
             *PTZ_ANY_CAPABILITIES,
@@ -78,8 +79,8 @@ BUTTON_ENTITIES = (
     EzvizButtonEntityDescription(
         key="ptz_right",
         translation_key="ptz_right",
-        method=lambda pyezviz_client, serial, run: pyezviz_client.ptz_control(
-            "RIGHT", serial, run
+        method=lambda pyezviz_client, serial, run, channel: pyezviz_client.ptz_control(
+            "RIGHT", serial, run, channel_no=channel
         ),
         supported_exts=(
             *PTZ_ANY_CAPABILITIES,
@@ -170,11 +171,15 @@ class EzvizButtonEntity(EzvizEntity, ButtonEntity):
     def press(self) -> None:
         """Execute the button action."""
         try:
+            # 双摄设备的云台在第 2 通道(长焦镜头), 单镜头云台机在第 1 通道。
+            channel = 2 if self.data.get("supported_channels", 1) > 1 else 1
             self.entity_description.method(
-                self.coordinator.ezviz_client, self._serial, "START"
+                self.coordinator.ezviz_client, self._serial, "START", channel
             )
+            # START 后保持片刻再 STOP, 否则云台移动时间过短(<200ms)肉眼不可见。
+            time.sleep(0.6)
             self.entity_description.method(
-                self.coordinator.ezviz_client, self._serial, "STOP"
+                self.coordinator.ezviz_client, self._serial, "STOP", channel
             )
         except (HTTPError, PyEzvizError) as err:
             raise HomeAssistantError(

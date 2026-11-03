@@ -2821,9 +2821,18 @@ class EzvizClient:
         return json_output
 
     def ptz_control(
-        self, command: str, serial: str, action: str, speed: int = 5
+        self,
+        command: str,
+        serial: str,
+        action: str,
+        speed: int = 5,
+        channel_no: int = 1,
     ) -> Any:
-        """PTZ Control by API."""
+        """PTZ Control by API.
+
+        channel_no: 云台镜头所在通道。单镜头云台机(如 C6/C8)为 1;
+        双摄云台机(如 C7)云台在第 2 通道(长焦镜头)。
+        """
         if command is None:
             raise PyEzvizError("Trying to call ptzControl without command")
         if action is None:
@@ -2835,7 +2844,7 @@ class EzvizClient:
             data={
                 "command": command,
                 "action": action,
-                "channelNo": 1,
+                "channelNo": channel_no,
                 "speed": speed,
                 "uuid": str(uuid4()),
                 "serial": serial,
