@@ -11,6 +11,14 @@ ATTR_TYPE_CAMERA = "CAMERA_ACCOUNT"
 CONF_SESSION_ID = "session_id"
 CONF_RFSESSION_ID = "rf_session_id"
 CONF_EZVIZ_ACCOUNT = "ezviz_account"
+CONF_OPEN_PLATFORM_APP_KEY = "open_platform_app_key"
+CONF_OPEN_PLATFORM_APP_SECRET = "open_platform_app_secret"
+
+# Events
+EVENT_ALARM = "ezviz_cn_alarm"
+
+# Alarm polling (open platform)
+ALARM_POLL_INTERVAL = 30  # 秒
 
 # Services data
 DIR_UP = "up"

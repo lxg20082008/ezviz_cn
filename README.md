@@ -74,6 +74,40 @@
 
 底层走 App 客户端 API 设备级端点 `/v3/devices/{serial}/1/changeDefenceStatusReq`（中国区可用），与账号级布防端点（`/v3/userdevices/v1/group/*`，中国区返回 404）无关。无需开放平台（open.ys7.com）AppKey。账号级报警面板实体（走 group 端点）在中国区不可用，集成已不再创建。
 
+## 移动侦测告警与本地录像（开放平台）
+
+本集成可选接入**萤石开放平台**（open.ys7.com），实现「移动侦测触发 → 本地录制」：
+
+1. 在萤石开放平台创建应用，把摄像头绑定到应用下
+1. HA → 设置 → 设备与服务 → ezviz_cn → **配置（选项）**，填入开放平台 **AppKey / AppSecret**
+1. 集成每 30 秒轮询告警，检测到新告警触发事件 **`ezviz_cn_alarm`**
+
+事件携带字段：`serial`、`alarm_type`（10120=移动侦测/人体检测）、`alarm_time`（毫秒时间戳）、`channel_no`、`alarm_pic_url`、`alarm_name`。
+
+自动化示例（检测到移动侦测 → `camera.record` 录制 30 秒）：
+
+```yaml
+automation:
+  - alias: "萤石移动侦测本地录像"
+    trigger:
+      - platform: event
+        event_type: ezviz_cn_alarm
+        event_data:
+          alarm_type: 10120
+    action:
+      - service: camera.record
+        target:
+          entity_id: camera.c7_bc2840612
+        data:
+          filename: "/media/recordings/motion_{{ now().strftime('%Y%m%d_%H%M%S') }}.mp4"
+          duration: 30
+          lookback: 10
+```
+
+录像保存到 `/media/recordings/`（宿主机 `/mnt/shared/media/recordings/`），可在 HA「媒体」里查看。
+
+> 说明：萤石云 App 客户端 MQTT 推送（`push.ys7.com`）的中国区凭证已失效，故本功能改用开放平台告警查询 API，无需逆向 App。
+
 ## 云台（PTZ）控制
 
 带云台的摄像头会自动生成 4 个方向按钮（云台上移/下移/左移/右移），点击一次移动一小段（约 0.3 秒）。单次移动幅度由 `speed`（云台速度，1 最慢）与 START/STOP 保持时长共同决定，代码常量 `PTZ_SPEED=1`、`PTZ_HOLD_SECONDS=0.3`，用于微调。双摄云台机（C7 等）的云台在第 2 通道（长焦镜头），单镜头云台机（C6/C8 等）在第 1 通道，集成会自动选择正确通道。底层走 App 客户端 API 设备级端点 `/v3/devices/{serial}/ptzControl`。
