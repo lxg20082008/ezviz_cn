@@ -50,19 +50,27 @@ async def async_setup_entry(
     entry: EzvizConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Ezviz alarm control panel."""
-    coordinator = entry.runtime_data
+    """Set up Ezviz alarm control panel.
 
-    device_info = DeviceInfo(
-        identifiers={(DOMAIN, entry.unique_id)},  # type: ignore[arg-type]
-        name="EZVIZ Alarm",
-        model="EZVIZ Alarm",
-        manufacturer=MANUFACTURER,
-    )
-
-    async_add_entities(
-        [EzvizAlarm(coordinator, entry.entry_id, device_info, ALARM_TYPE)]
-    )
+    中国区 api.ys7.com 不支持账号级 group 布防端点:
+    - 读 get_group_defence_mode → /v3/userdevices/v1/group/defenceMode (404)
+    - 写 api_set_defence_mode → /v3/userdevices/v1/group/switchDefenceMode (404)
+    读、写全部不可用, 故不创建报警面板实体(否则 UI 上的布防按钮点了必报 404)。
+    布防请用设备级 switch「布防」实体(switch.py 的 EzvizDefenceSwitch,
+    走 /v3/devices/{serial}/1/changeDefenceStatusReq)。若将来萤石云开放 group
+    端点, 恢复下方创建逻辑即可。
+    """
+    # 中国区 group 布防端点不可用, 不创建实体。
+    # coordinator = entry.runtime_data
+    # device_info = DeviceInfo(
+    #     identifiers={(DOMAIN, entry.unique_id)},  # type: ignore[arg-type]
+    #     name="EZVIZ Alarm",
+    #     model="EZVIZ Alarm",
+    #     manufacturer=MANUFACTURER,
+    # )
+    # async_add_entities(
+    #     [EzvizAlarm(coordinator, entry.entry_id, device_info, ALARM_TYPE)]
+    # )
 
 
 class EzvizAlarm(AlarmControlPanelEntity):

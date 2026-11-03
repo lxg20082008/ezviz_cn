@@ -20,7 +20,7 @@
 | 项目 | 说明 |
 | --- | --- |
 | 登录 / 发码接口 | `api.ys7.com`；发验证码接口 `/v3/sms/nologin/checkcode`（带登录 headers，`bizType=TERMINAL_BIND`） |
-| group defenceMode 端点 | 中国区返回 404，已做容错：报警面板保持未知状态，仅警告一次，不刷屏 |
+| group defenceMode 端点 | 中国区返回 404，已容错：不再创建账号级报警面板实体（改用设备级布防 switch），仅警告一次不刷屏 |
 | `async_setup_entry` | 返回 `bool`，对齐 HA 新版要求，不再报 `did not return boolean` |
 | 设备属性 `supportExt` | 为空时不再崩溃（light / number / siren 等实体） |
 | RTSP 连接测试 | 带 10 秒超时；网络不可达（如 Errno 113）会给出友好中文提示，不再报 "Unexpected exception" |
@@ -66,13 +66,13 @@
 
 ## 布防 / 撤防（移动侦测）
 
-每台接入的摄像头会自动创建一个 **switch 实体「布防」**（如「客厅萤石C7摄像头 布防」），与萤石 App 的布防按钮等效：
+每台接入的摄像头会自动创建一个 **switch 实体「布防」**（显示名「布防」，如 switch.c7_bc2840612_bu_fang），与萤石 App 的布防按钮等效：
 
 - **布防**：开启移动侦测（有人移动即告警、推送）
 - **撤防**：关闭移动侦测
 - 状态实时回读自设备上报的 `alarm_notify`（STATUS.globalStatus）
 
-底层走 App 客户端 API 设备级端点 `/v3/devices/{serial}/1/changeDefenceStatusReq`（中国区可用），与账号级布防端点（`/v3/userdevices/v1/group/*`，中国区返回 404）无关。无需开放平台（open.ys7.com）AppKey。
+底层走 App 客户端 API 设备级端点 `/v3/devices/{serial}/1/changeDefenceStatusReq`（中国区可用），与账号级布防端点（`/v3/userdevices/v1/group/*`，中国区返回 404）无关。无需开放平台（open.ys7.com）AppKey。账号级报警面板实体（走 group 端点）在中国区不可用，集成已不再创建。
 
 ## 注意
 

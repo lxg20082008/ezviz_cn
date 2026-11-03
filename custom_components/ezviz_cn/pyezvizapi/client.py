@@ -3615,13 +3615,21 @@ class EzvizClient:
         if sound_mode is not None:
             data["soundMode"] = sound_mode
 
-        json_output = self._request_json(
-            "POST",
-            API_ENDPOINT_SWITCH_DEFENCE_MODE,
-            data=data,
-            retry_401=True,
-            max_retries=max_retries,
-        )
+        try:
+            json_output = self._request_json(
+                "POST",
+                API_ENDPOINT_SWITCH_DEFENCE_MODE,
+                data=data,
+                retry_401=True,
+                max_retries=max_retries,
+            )
+        except HTTPError as err:
+            # 中国区 api.ys7.com 不支持账号级 group 布防端点(404)。
+            # 报警面板已不再创建实体, 此兜底保证任何残留调用都得到明确中文报错。
+            self._group_defence_mode_unsupported = True
+            raise PyEzvizError(
+                "账号级布防在中国区不可用(group 端点 404), 请使用设备级「布防」开关"
+            ) from err
         self._ensure_ok(json_output, "Could not set defence mode")
         return True
 
