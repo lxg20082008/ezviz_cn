@@ -74,6 +74,10 @@
 
 底层走 App 客户端 API 设备级端点 `/v3/devices/{serial}/1/changeDefenceStatusReq`（中国区可用），与账号级布防端点（`/v3/userdevices/v1/group/*`，中国区返回 404）无关。无需开放平台（open.ys7.com）AppKey。账号级报警面板实体（走 group 端点）在中国区不可用，集成已不再创建。
 
+## 云台（PTZ）控制
+
+带云台的摄像头会自动生成 4 个方向按钮（云台上移/下移/左移/右移），点击一次移动一小段（约 0.3 秒）。单次移动幅度由 `speed`（云台速度，1 最慢）与 START/STOP 保持时长共同决定，代码常量 `PTZ_SPEED=1`、`PTZ_HOLD_SECONDS=0.3`，用于微调。双摄云台机（C7 等）的云台在第 2 通道（长焦镜头），单镜头云台机（C6/C8 等）在第 1 通道，集成会自动选择正确通道。底层走 App 客户端 API 设备级端点 `/v3/devices/{serial}/ptzControl`。
+
 ## 注意
 
 - 不建议同时启用官方 `EZVIZ` 集成和本集成，因为两者都会安装同名 Python 包 `pyezvizapi`（本集成内置同名包并通过 `sys.modules` 注入，官方集成可能受影响）。
