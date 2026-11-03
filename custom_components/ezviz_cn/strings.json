@@ -194,8 +194,9 @@
         "data": {
           "ffmpeg_arguments": "Arguments passed to FFmpeg for cameras",
           "timeout": "Request timeout (seconds)",
-          "open_platform_app_key": "开放平台 AppKey（用于移动侦测告警轮询，选填）",
-          "open_platform_app_secret": "开放平台 AppSecret（用于移动侦测告警轮询，选填）"
+          "device_id": "设备 ID(deviceID，用于移动侦测告警轮询，选填)",
+          "app_key": "AppKey（开放平台，用于移动侦测告警轮询，选填）",
+          "app_secret": "AppSecret(Secret)（开放平台，用于移动侦测告警轮询，选填）"
         }
       }
     }

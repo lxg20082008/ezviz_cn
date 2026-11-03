@@ -11,6 +11,10 @@ ATTR_TYPE_CAMERA = "CAMERA_ACCOUNT"
 CONF_SESSION_ID = "session_id"
 CONF_RFSESSION_ID = "rf_session_id"
 CONF_EZVIZ_ACCOUNT = "ezviz_account"
+CONF_DEVICE_ID = "device_id"
+CONF_APP_KEY = "app_key"
+CONF_APP_SECRET = "app_secret"
+# 兼容旧字段名（2026-11-03 早期版本，已迁移到 app_key/app_secret）
 CONF_OPEN_PLATFORM_APP_KEY = "open_platform_app_key"
 CONF_OPEN_PLATFORM_APP_SECRET = "open_platform_app_secret"
 

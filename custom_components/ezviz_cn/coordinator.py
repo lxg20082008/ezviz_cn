@@ -51,6 +51,7 @@ class EzvizDataUpdateCoordinator(DataUpdateCoordinator):
         self._open_platform: EzvizOpenPlatformClient | None = None
         self._alarm_poll_task: asyncio.Task | None = None
         self._alarm_cursor_ms = 0  # 上次告警查询的结束时间戳(毫秒)
+        self._alarm_device_id: str | None = None  # 指定告警查询的设备序列号(deviceID)
         update_interval = timedelta(minutes=5)
 
         super().__init__(
@@ -121,9 +122,12 @@ class EzvizDataUpdateCoordinator(DataUpdateCoordinator):
                 return self.data
             raise UpdateFailed("EZVIZ API request timed out") from error
 
-    def setup_open_platform(self, app_key: str, app_secret: str) -> None:
+    def setup_open_platform(
+        self, app_key: str, app_secret: str, device_id: str | None = None
+    ) -> None:
         """创建开放平台客户端(配置了 AppKey/Secret 才启用告警轮询)。"""
         self._open_platform = EzvizOpenPlatformClient(app_key, app_secret)
+        self._alarm_device_id = device_id
 
     async def start_alarm_polling(self) -> None:
         """启动开放平台告警轮询后台任务。"""
@@ -166,7 +170,9 @@ class EzvizDataUpdateCoordinator(DataUpdateCoordinator):
 
         start_ms = self._alarm_cursor_ms
 
-        for serial in self.data:
+        # 配置了 deviceID 则只查该设备，否则遍历所有接入摄像头
+        serials = [self._alarm_device_id] if self._alarm_device_id else list(self.data)
+        for serial in serials:
             try:
                 alarms = await self.hass.async_add_executor_job(
                     self._open_platform.get_alarm_list, serial, start_ms, now_ms
