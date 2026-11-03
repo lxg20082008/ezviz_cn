@@ -82,18 +82,19 @@
 1. HA → 设置 → 设备与服务 → ezviz_cn → **配置（选项）**，填入 **设备 ID(deviceID)**、**AppKey**、**AppSecret(Secret)**
 1. 集成每 30 秒轮询告警，检测到新告警触发事件 **`ezviz_cn_alarm`**
 
-事件携带字段：`serial`、`alarm_type`（10120=移动侦测/人体检测）、`alarm_time`（毫秒时间戳）、`channel_no`、`alarm_pic_url`、`alarm_name`。
+事件携带字段：`serial`、`alarm_type`（10120=移动侦测，15003=智能检测[人形/宠物]）、`alarm_time`（毫秒时间戳）、`channel_no`、`alarm_pic_url`、`alarm_name`。
 
 自动化示例（检测到移动侦测 → `camera.record` 录制 30 秒）：
 
 ```yaml
 automation:
-  - alias: "萤石移动侦测本地录像"
+  - alias: "萤石智能检测本地录像"
     trigger:
       - platform: event
         event_type: ezviz_cn_alarm
-        event_data:
-          alarm_type: 10120
+    condition:
+      - condition: template
+        value_template: "{{ trigger.event.data.alarm_type in [10120, 15003] }}"
     action:
       - service: camera.record
         target:
