@@ -25,6 +25,9 @@ from homeassistant.helpers import entity_registry as er
 from .const import (
     ATTR_TYPE_CAMERA,
     ATTR_TYPE_CLOUD,
+    CONF_APP_KEY,
+    CONF_APP_SECRET,
+    CONF_DEVICE_ID,
     CONF_FFMPEG_ARGUMENTS,
     CONF_OPEN_PLATFORM_APP_KEY,
     CONF_OPEN_PLATFORM_APP_SECRET,
@@ -102,10 +105,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: EzvizConfigEntry) -> boo
         entry.runtime_data = coordinator
 
         # 若配置了开放平台 AppKey/Secret，启用告警轮询(移动侦测触发本地录像)
-        app_key = entry.options.get(CONF_OPEN_PLATFORM_APP_KEY)
-        app_secret = entry.options.get(CONF_OPEN_PLATFORM_APP_SECRET)
+        app_key = entry.options.get(CONF_APP_KEY) or entry.options.get(
+            CONF_OPEN_PLATFORM_APP_KEY
+        )
+        app_secret = entry.options.get(CONF_APP_SECRET) or entry.options.get(
+            CONF_OPEN_PLATFORM_APP_SECRET
+        )
+        device_id = entry.options.get(CONF_DEVICE_ID)
         if app_key and app_secret:
-            coordinator.setup_open_platform(app_key, app_secret)
+            coordinator.setup_open_platform(app_key, app_secret, device_id=device_id)
             await coordinator.start_alarm_polling()
 
     # Check EZVIZ cloud account entity is present, reload
