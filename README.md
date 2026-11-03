@@ -99,12 +99,15 @@ automation:
         target:
           entity_id: camera.c7_bc2840612
         data:
-          filename: "/media/recordings/motion_{{ now().strftime('%Y%m%d_%H%M%S') }}.mp4"
+          filename: "/media/recordings/C7/motion_{{ now().strftime('%Y%m%d_%H%M%S') }}.mp4"
           duration: 30
           lookback: 10
+      - delay:
+          minutes: 5
+    mode: single
 ```
 
-录像保存到 `/media/recordings/`（宿主机 `/mnt/shared/media/recordings/`），可在 HA「媒体」里查看。
+录像保存到 `/media/recordings/C7/`（宿主机 `/mnt/shared/media/recordings/C7/`），可在 HA「媒体」里查看。`mode: single` + `delay 5 分钟` 实现冷却，避免宠物频繁触发刷屏（HA 的 event trigger 不支持 `rate_limit`）。
 
 > 说明：萤石云 App 客户端 MQTT 推送（`push.ys7.com`）的中国区凭证已失效，故本功能改用开放平台告警查询 API，无需逆向 App。
 
