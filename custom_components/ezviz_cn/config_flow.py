@@ -37,6 +37,8 @@ from .const import (
     ATTR_TYPE_CLOUD,
     CHINA_URL,
     CONF_FFMPEG_ARGUMENTS,
+    CONF_OPEN_PLATFORM_APP_KEY,
+    CONF_OPEN_PLATFORM_APP_SECRET,
     CONF_RFSESSION_ID,
     CONF_SESSION_ID,
     DEFAULT_CAMERA_USERNAME,
@@ -446,6 +448,18 @@ class EzvizOptionsFlowHandler(OptionsFlowWithReload):
                     CONF_FFMPEG_ARGUMENTS,
                     default=self.config_entry.options.get(
                         CONF_FFMPEG_ARGUMENTS, DEFAULT_FFMPEG_ARGUMENTS
+                    ),
+                ): str,
+                vol.Optional(
+                    CONF_OPEN_PLATFORM_APP_KEY,
+                    default=self.config_entry.options.get(
+                        CONF_OPEN_PLATFORM_APP_KEY, ""
+                    ),
+                ): str,
+                vol.Optional(
+                    CONF_OPEN_PLATFORM_APP_SECRET,
+                    default=self.config_entry.options.get(
+                        CONF_OPEN_PLATFORM_APP_SECRET, ""
                     ),
                 ): str,
             }

@@ -26,6 +26,8 @@ from .const import (
     ATTR_TYPE_CAMERA,
     ATTR_TYPE_CLOUD,
     CONF_FFMPEG_ARGUMENTS,
+    CONF_OPEN_PLATFORM_APP_KEY,
+    CONF_OPEN_PLATFORM_APP_SECRET,
     CONF_RFSESSION_ID,
     CONF_SESSION_ID,
     DEFAULT_FFMPEG_ARGUMENTS,
@@ -99,6 +101,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: EzvizConfigEntry) -> boo
 
         entry.runtime_data = coordinator
 
+        # 若配置了开放平台 AppKey/Secret，启用告警轮询(移动侦测触发本地录像)
+        app_key = entry.options.get(CONF_OPEN_PLATFORM_APP_KEY)
+        app_secret = entry.options.get(CONF_OPEN_PLATFORM_APP_SECRET)
+        if app_key and app_secret:
+            coordinator.setup_open_platform(app_key, app_secret)
+            await coordinator.start_alarm_polling()
+
     # Check EZVIZ cloud account entity is present, reload
     # cloud account entities for camera entity change
     # to take effect.
@@ -138,6 +147,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: EzvizConfigEntry) -> boo
 async def async_unload_entry(hass: HomeAssistant, entry: EzvizConfigEntry) -> bool:
     """Unload a config entry."""
     sensor_type = entry.data[CONF_TYPE]
+
+    if sensor_type == ATTR_TYPE_CLOUD:
+        coordinator = entry.runtime_data
+        if coordinator is not None:
+            await coordinator.stop_alarm_polling()
 
     return await hass.config_entries.async_unload_platforms(
         entry, PLATFORMS_BY_TYPE[sensor_type]
