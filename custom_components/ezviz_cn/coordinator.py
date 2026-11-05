@@ -3,7 +3,10 @@
 import asyncio
 from datetime import timedelta
 import logging
+import os
 import time
+
+import requests
 
 from pyezvizapi.client import EzvizClient
 from pyezvizapi.exceptions import (
@@ -13,6 +16,7 @@ from pyezvizapi.exceptions import (
     InvalidURL,
     PyEzvizError,
 )
+from pyezvizapi.utils import decrypt_image
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_URL, CONF_USERNAME
@@ -21,6 +25,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
+    ALARM_PIC_DIR,
     ALARM_POLL_INTERVAL,
     CONF_RFSESSION_ID,
     CONF_SESSION_ID,
@@ -193,6 +198,10 @@ class EzvizDataUpdateCoordinator(DataUpdateCoordinator):
                     alarm.get("channelNo"),
                     alarm.get("alarmName"),
                 )
+                # 毫秒级唯一时间戳，抓拍图与录像共用同名(不同后缀)
+                ts = time.strftime(
+                    "%Y%m%d_%H%M%S", time.localtime(alarm_ts / 1000)
+                ) + f"_{alarm_ts % 1000:03d}"
                 self.hass.bus.async_fire(
                     EVENT_ALARM,
                     {
@@ -200,13 +209,67 @@ class EzvizDataUpdateCoordinator(DataUpdateCoordinator):
                         "alarm_id": alarm.get("alarmId"),
                         "alarm_type": alarm.get("alarmType"),
                         "alarm_time": alarm_ts,
+                        "ts": ts,
                         "channel_no": alarm.get("channelNo"),
                         "alarm_pic_url": alarm.get("alarmPicUrl"),
                         "alarm_name": alarm.get("alarmName"),
                     },
                 )
+                # 后台下载并解密抓拍图，不阻塞告警轮询
+                self.hass.async_create_task(
+                    self._save_alarm_picture(serial, alarm, ts)
+                )
 
         self._alarm_cursor_ms = now_ms
+
+    async def _save_alarm_picture(
+        self, serial: str, alarm: dict, ts: str
+    ) -> None:
+        """下载告警抓拍图，解密后落盘到本地媒体目录(与录像同名不同后缀)。"""
+        pic_url = alarm.get("alarmPicUrl")
+        if not pic_url:
+            return
+
+        # 设备验证码(也是 RTSP 密码)用于解密海康加密图片
+        password: str | None = None
+        camera_entry = self.hass.config_entries.async_entry_for_domain_unique_id(
+            DOMAIN, serial
+        )
+        if camera_entry is not None:
+            password = camera_entry.data.get(CONF_PASSWORD)
+
+        try:
+            def _download_and_decrypt() -> bytes:
+                resp = requests.get(str(pic_url), timeout=self._api_timeout)
+                resp.raise_for_status()
+                data = resp.content
+                # hikencodepicture 头 = 海康加密图片，需用设备验证码解密
+                if data.startswith(b"hikencodepicture"):
+                    if not password:
+                        raise PyEzvizError("图片加密但缺少设备验证码")
+                    data = decrypt_image(data, password)
+                return data
+
+            image_data = await self.hass.async_add_executor_job(
+                _download_and_decrypt
+            )
+        except Exception as err:  # noqa: BLE001 - 落盘失败不影响主流程
+            _LOGGER.warning(
+                "下载/解密告警抓拍图失败 serial=%s: %s", serial, _error_text(err)
+            )
+            return
+
+        path = f"{ALARM_PIC_DIR}/motion_{ts}.jpg"
+        try:
+            def _write() -> None:
+                os.makedirs(ALARM_PIC_DIR, exist_ok=True)
+                with open(path, "wb") as fh:
+                    fh.write(image_data)
+
+            await self.hass.async_add_executor_job(_write)
+            _LOGGER.warning("告警抓拍图已保存: %s (%d 字节)", path, len(image_data))
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("写入告警抓拍图失败 %s: %s", path, _error_text(err))
 
 
 def _error_text(error: Exception) -> str:

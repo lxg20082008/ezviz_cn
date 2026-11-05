@@ -82,7 +82,7 @@
 1. HA → 设置 → 设备与服务 → ezviz_cn → **配置（选项）**，填入 **设备 ID(deviceID)**、**AppKey**、**AppSecret(Secret)**
 1. 集成每 30 秒轮询告警，检测到新告警触发事件 **`ezviz_cn_alarm`**
 
-事件携带字段：`serial`、`alarm_type`（10120=移动侦测，15003=智能检测[人形/宠物]）、`alarm_time`（毫秒时间戳）、`channel_no`、`alarm_pic_url`、`alarm_name`。
+事件携带字段：`serial`、`alarm_type`（10120=移动侦测，15003=智能检测[人形/宠物]）、`alarm_time`（毫秒时间戳）、`ts`（毫秒级唯一时间戳，抓拍图与录像共用）、`channel_no`、`alarm_pic_url`、`alarm_name`。
 
 自动化示例（检测到移动侦测 → `camera.record` 录制 30 秒）：
 
@@ -100,7 +100,7 @@ automation:
         target:
           entity_id: camera.c7_bc2840612
         data:
-          filename: "/media/recordings/C7/motion_{{ now().strftime('%Y%m%d_%H%M%S') }}.mp4"
+          filename: "/media/recordings/C7/motion_{{ trigger.event.data.ts }}.mp4"
           duration: 30
           lookback: 10
       - delay:
@@ -108,13 +108,28 @@ automation:
     mode: single
 ```
 
-录像保存到 `/media/recordings/C7/`（宿主机 `/mnt/shared/media/recordings/C7/`），可在 HA「媒体」里查看。`mode: single` + `delay 5 分钟` 实现冷却，避免宠物频繁触发刷屏（HA 的 event trigger 不支持 `rate_limit`）。
+录像保存到 `/media/recordings/C7/`（宿主机 `/mnt/shared/media/recordings/C7/`），可在 HA「媒体」里查看。同时集成会**自动下载告警抓拍图**（`alarm_pic_url` 是海康 `hikencodepicture` 加密格式），用设备验证码解密后以同名 `.jpg` 落盘到同一目录（`motion_<ts>.jpg`），与录像 `.mp4` 按 `ts` 一一配对。`mode: single` + `delay 5 分钟` 实现冷却，避免宠物频繁触发刷屏（HA 的 event trigger 不支持 `rate_limit`）。
 
 > 说明：萤石云 App 客户端 MQTT 推送（`push.ys7.com`）的中国区凭证已失效，故本功能改用开放平台告警查询 API，无需逆向 App。
 
 ## 云台（PTZ）控制
 
 带云台的摄像头会自动生成 4 个方向按钮（云台上移/下移/左移/右移），点击一次移动一小段（约 0.3 秒）。单次移动幅度由 `speed`（云台速度，1 最慢）与 START/STOP 保持时长共同决定，代码常量 `PTZ_SPEED=1`、`PTZ_HOLD_SECONDS=0.3`，用于微调。双摄云台机（C7 等）的云台在第 2 通道（长焦镜头），单镜头云台机（C6/C8 等）在第 1 通道，集成会自动选择正确通道。底层走 App 客户端 API 设备级端点 `/v3/devices/{serial}/ptzControl`。
+
+### 云台坐标定位服务 `ptz_go_coordinates`
+
+萤石云没有预置位（preset）API，本集成提供「3D 坐标定位」服务 `ezviz_cn.ptz_go_coordinates` 作为替代：把云台转到**广角画面中的指定位置**（`x_axis`/`y_axis` 均为 0~1 归一化坐标，左上角 (0,0) → 右下角 (1,1)），可用于「常用位置一键直达」。
+
+```yaml
+service: ezviz_cn.ptz_go_coordinates
+target:
+  entity_id: camera.c7_bc2840612
+data:
+  x_axis: 0.25
+  y_axis: 0.25
+```
+
+底层走开放平台 IoT 特性接口 `/v3/iot-feature/action/`（`PTZManualCtrl`/`CtrlPTZ3DPosition`，资源标识 `Video_1`）。已实测支持 C7（坐标基于广角画面，云台转到对应方向）；若设备不支持，调用会返回「设备功能未报备」。
 
 ## 注意
 

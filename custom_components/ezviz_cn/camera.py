@@ -2,6 +2,8 @@
 
 import logging
 
+import voluptuous as vol
+
 from pyezvizapi.exceptions import HTTPError, InvalidHost, PyEzvizError
 
 from homeassistant.components import ffmpeg
@@ -19,10 +21,13 @@ from homeassistant.helpers.entity_platform import (
 
 from .const import (
     ATTR_SERIAL,
+    ATTR_X_AXIS,
+    ATTR_Y_AXIS,
     CONF_FFMPEG_ARGUMENTS,
     DEFAULT_CAMERA_USERNAME,
     DEFAULT_FFMPEG_ARGUMENTS,
     DOMAIN,
+    SERVICE_PTZ_GO_COORDINATES,
     SERVICE_WAKE_DEVICE,
 )
 from .coordinator import EzvizConfigEntry, EzvizDataUpdateCoordinator
@@ -134,6 +139,14 @@ async def async_setup_entry(
     platform.async_register_entity_service(
         SERVICE_WAKE_DEVICE, None, "perform_wake_device"
     )
+    platform.async_register_entity_service(
+        SERVICE_PTZ_GO_COORDINATES,
+        {
+            vol.Required(ATTR_X_AXIS): vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
+            vol.Required(ATTR_Y_AXIS): vol.All(vol.Coerce(float), vol.Range(min=0, max=1)),
+        },
+        "perform_ptz_go_coordinates",
+    )
 
 
 class EzvizCamera(EzvizEntity, Camera):
@@ -238,3 +251,13 @@ class EzvizCamera(EzvizEntity, Camera):
             self.coordinator.ezviz_client.get_detection_sensibility(self._serial)
         except (HTTPError, PyEzvizError) as err:
             raise PyEzvizError("Cannot wake device") from err
+
+    def perform_ptz_go_coordinates(self, x_axis: float, y_axis: float) -> None:
+        """将云台转到广角画面指定坐标(0-1 归一化), 实现常用位置快捷定位."""
+        try:
+            self.coordinator.ezviz_client.ptz_control_coordinates(
+                self._serial, x_axis, y_axis
+            )
+        except (HTTPError, PyEzvizError) as err:
+            raise PyEzvizError("Cannot move PTZ to coordinates") from err
+

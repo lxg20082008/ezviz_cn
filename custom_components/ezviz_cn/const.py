@@ -23,6 +23,8 @@ EVENT_ALARM = "ezviz_cn_alarm"
 
 # Alarm polling (open platform)
 ALARM_POLL_INTERVAL = 30  # 秒
+# 告警抓拍图落盘目录(HA 容器内路径，宿主机 /mnt/shared/media/recordings/C7)
+ALARM_PIC_DIR = "/media/recordings/C7"
 
 # Services data
 DIR_UP = "up"
@@ -35,9 +37,13 @@ ATTR_SPEED = "speed"
 ATTR_LEVEL = "level"
 ATTR_TYPE = "type_value"
 
+ATTR_X_AXIS = "x_axis"
+ATTR_Y_AXIS = "y_axis"
+
 # Service names
 SERVICE_WAKE_DEVICE = "wake_device"
 SERVICE_DETECTION_SENSITIVITY = "set_alarm_detection_sensibility"
+SERVICE_PTZ_GO_COORDINATES = "ptz_go_coordinates"
 
 # Defaults
 CHINA_URL = "api.ys7.com"
